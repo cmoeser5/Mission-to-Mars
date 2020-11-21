@@ -40,8 +40,6 @@ def get_image(url):
     fireFoxOptions.set_headless()
     driver = webdriver.Firefox(firefox_options=fireFoxOptions)
     driver.get(url_image)
-    driver.find_element_by_link_text("FULL IMAGE").click()
-    driver.find_elements_by_class_name("button").click()
     html_image=driver.page_source
     driver.close()
     
@@ -51,16 +49,13 @@ def get_image(url):
 url_image = "https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars"
 html_image = get_image(url_image)
 
-soup_image = BeautifulSoup(html, "html.parser")
+soup_image = BeautifulSoup(html_image, "html.parser")
 
-main_image = soup_image.find_all("img", class_="main_image")
+image = soup_image.find("article")["style"].replace('background-image: url(','').replace(');', '')[1:-1]
+main_url = "https://www.jpl.nasa.gov"
+image_url = main_url + image
+print(image_url)
 
-src = ""
-for image in main_image:
-    src = image["src"]
-
-featured_image_url = f"https://www.jpl.nasa.gov" + f"{src}"
-print(featured_image_url) 
 
 # Mars Facts
 page = requests.get("https://space-facts.com/mars")
