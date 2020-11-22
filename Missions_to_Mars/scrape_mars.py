@@ -12,7 +12,7 @@ def firefox_driver():
     return driver
 
 driver = firefox_driver()
-mars_dict = {}
+mars= {}
 
 # Define scrape function
 def scrape(driver):
@@ -26,10 +26,10 @@ def scrape(driver):
     # Finding News
     news_titles = soup.find_all("li", class_="slide")
     latest_story = news_titles[1].find("div", class_="content_title")
-    mars_dict["news_title"] = latest_story.text.strip()
+    mars["news_title"] = latest_story.text.strip()
 
     article_p = news_titles[1].find("div", class_="article_teaser_body")
-    mars_dict["news_article_p"] = article_p.text.strip()
+    mars["news_article_p"] = article_p.text.strip()
 
     # JPL Mars Space Image
     url = "https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars"
@@ -40,7 +40,7 @@ def scrape(driver):
     image = soup.find("article")["style"].replace('background-image: url(','').replace(');', '')[1:-1]
     main_url = "https://www.jpl.nasa.gov"
     image_url = main_url + image
-    mars_dict["featured_image"] = image_url
+    mars["featured_image"] = image_url
 
     # Mars Facts Table
     page = requests.get("https://space-facts.com/mars")
@@ -54,7 +54,7 @@ def scrape(driver):
     ]
     df = pd.DataFrame(table_data)
     mars_html_table = df.to_html(index=False)
-    mars_dict["mars_facts"] = mars_html_table
+    mars["mars_facts"] = mars_html_table
 
     # Mars Hemispheres
     # Image 1
@@ -118,10 +118,13 @@ def scrape(driver):
         {"title": "Syrtis Major Hemisphere", "img_url": "image_h3"},
         {"title": "Valles Marineris Hemisphere", "img_url": "image_h4"},
     ]
-    mars_dict["mars hemispheres"] = hemisphere_image_urls
+    mars["mars hemispheres"] = hemisphere_image_urls
 
-    return mars_dict
+    return mars
     driver.close()
 
 scrape(driver)
-print(mars_dict)
+print(mars)
+
+if __name__ == "__main__":
+    print(scrape(driver))
