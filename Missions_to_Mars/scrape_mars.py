@@ -19,6 +19,7 @@ def scrape(driver):
     # Mars News Site
     url = "https://mars.nasa.gov/news/?page=0&per_page=40&order=publish_date+desc%2Ccreated_at+desc&search=&category=19%2C165%2C184%2C204&blank_scope=Latest"
     driver.get(url)
+    driver.implicitly_wait(10)
     html = driver.page_source
     soup = BeautifulSoup(html, "html.parser")
 
@@ -52,7 +53,8 @@ def scrape(driver):
     [cell.text for cell in row.find_all(["th", "td"])] for row in table.find_all("tr")
     ]
     df = pd.DataFrame(table_data)
-    mars_html_table = df.to_html(header=False, index=False)
+    mars_html_table = df.to_html(index=False)
+    mars_dict["mars_facts"] = mars_html_table
 
     # Mars Hemispheres
     # Image 1
