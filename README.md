@@ -7,7 +7,7 @@ Built a web application that scrapes various websites for data related to the Mi
 * Python
 * Selenium
 * BeautifulSoup
-* Panadas
+* Pandas
 * Flask
 * MongoDB
 * PyMongo
