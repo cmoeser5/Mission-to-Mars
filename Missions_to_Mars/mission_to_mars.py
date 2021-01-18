@@ -42,14 +42,14 @@ print(news_p)
 
 # establish url and go seach Mars images
 base_url = "https://www.jpl.nasa.gov"
-url = base_url + "images/insights-mole-comes-to-rest/"
+url = base_url + "/spaceimages/?search=&category=Mars"
 
 driver.get(url)
 driver.implicitly_wait(10)
 
 # navigate web page to find large image url
-driver.find_element_by_link_text("BaseImage object-scale-down").click()
-#driver.find_element_by_partial_link_text("more info").click()
+driver.find_element_by_link_text("FULL IMAGE").click()
+driver.find_element_by_partial_link_text("more info").click()
 
 # scrape page
 driver.implicitly_wait(10)
