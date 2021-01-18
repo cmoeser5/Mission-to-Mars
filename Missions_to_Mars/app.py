@@ -1,28 +1,32 @@
-from scrape_mars import scrape, mars
-from scrape_mars import firefox_driver
-from flask import Flask, render_template, redirect
-from flask_pymongo import PyMongo
-import os
 
-driver = firefox_driver()
+# set up and dependencies
+from scrape_mars import scrape
+from scrape_mars import configure_chrome_driver
+import os
+from flask import Flask, render_template, redirect
+import pymongo
+
+driver = configure_chrome_driver()
+
+# set up connections to Mongo Database
+CONN = os.getenv("CONN")
+client = pymongo.MongoClient(CONN)
+db = client.mars
+
 app = Flask(__name__)
 
-
-app.config["MONGO_URI"] = "mongodb://localhost:27017/mars"
-mongo = PyMongo(app)
-
-
 @app.route("/")
-def index():
-    mars= mongo.db.mars.find_one()
-    return render_template("index.html", mars=mars)
+def main():
+
+    mars_data = db.mars.find_one()
+    return render_template("index.html", mars_data=mars_data)
 
 @app.route("/scrape")
-def scrape():
-    mars = mongo.db.mars
-    mars_data = scrape_mars.scrape()
-    mars.update({}, mars_data, upsert=True)
-    return redirect ("/", code=302)
+def scrape_route():
+    db.mars.drop()
+    db.mars.insert_one(scrape(driver))
+    return redirect("/", code=303)
+
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,130 +1,151 @@
-import pandas as pd
-import requests
+#set up and dependencies
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.chrome.options import Options
+import pandas as pd 
 
-# Define Firefox Webdriver 
-def firefox_driver():
-    firefox_options = FirefoxOptions()
-    firefox_options.add_argument("--headless")
-    driver = webdriver.Firefox(options=firefox_options)
+# set up driver
+def configure_chrome_driver():
+
+    options = Options()
+    options.headless = True
+    driver = webdriver.Chrome("/usr/local/bin/chromedriver", options=options)
+
     return driver
 
-driver = firefox_driver()
-mars= {}
+# establish driver function
+driver = configure_chrome_driver()
 
-# Define scrape function
+# empty dict for adding values
+mars_data = {}
+
 def scrape(driver):
-    # Mars News Site
-    url = "https://mars.nasa.gov/news/?page=0&per_page=40&order=publish_date+desc%2Ccreated_at+desc&search=&category=19%2C165%2C184%2C204&blank_scope=Latest"
+
+    # establish url and scrape web page for Mars News
+    url = "https://mars.nasa.gov/news/"
+
+    driver.get(url)
+    driver.implicitly_wait(20)
+    html = driver.page_source
+
+    # pass to bs4 for parsing
+    soup = BeautifulSoup(html, "html.parser")
+
+    # extract news titles
+    news_titles = soup.find_all("li", class_="slide")
+
+    # extract latest news title and add to dict
+    latest = news_titles[0].find("div", class_="content_title")
+    mars_data["news_title"] = latest.text.strip()
+
+    # extract latest news paragraph text and add to dict
+    p_text = news_titles[0].find("div", class_="article_teaser_body")
+    mars_data["mars_news_p"] = p_text.text.strip()
+
+    # establish url and seach Mars featured image
+    base_url = "https://www.jpl.nasa.gov"
+    url = base_url + "/spaceimages/?search=&category=Mars"
+
+    driver.get(url)
+    driver.implicitly_wait(10)
+
+    # navigate web page to find large image url
+    driver.find_element_by_link_text("FULL IMAGE").click()
+    driver.find_element_by_partial_link_text("more info").click()
+
+    # scrape page
+    driver.implicitly_wait(10)
+    html = driver.page_source
+
+    # pass to bs4 for parsing
+    soup = BeautifulSoup(html, "html.parser")
+
+    main_img = soup.find_all("img", class_="main_image")
+
+    # extract out src attribute
+    src = ""
+
+    for image in main_img:
+        src = image["src"]
+
+    # combine base url with src string and add to dict
+    mars_data["featured_image"] = base_url + src
+
+    # establish url and scrape web page for facts table
+    url = "https://space-facts.com/mars/"
+
     driver.get(url)
     driver.implicitly_wait(10)
     html = driver.page_source
+
+    # pass to bs4 for parsing
     soup = BeautifulSoup(html, "html.parser")
 
-    # Finding News
-    news_titles = soup.find_all("li", class_="slide")
-    latest_story = news_titles[1].find("div", class_="content_title")
-    mars["news_title"] = latest_story.text.strip()
-
-    article_p = news_titles[1].find("div", class_="article_teaser_body")
-    mars["news_article_p"] = article_p.text.strip()
-
-    # JPL Mars Space Image
-    url = "https://www.jpl.nasa.gov/spaceimages/?search=&category=Mars"
-    driver.get(url)
-    html = driver.page_source
-    soup = BeautifulSoup(html, "html.parser")
-
-    image = soup.find("article")["style"].replace('background-image: url(','').replace(');', '')[1:-1]
-    main_url = "https://www.jpl.nasa.gov"
-    image_url = main_url + image
-    mars["featured_image"] = image_url
-
-    # Mars Facts Table
-    page = requests.get("https://space-facts.com/mars")
-    soup = BeautifulSoup(page.content, "html.parser")
     tables = soup.find_all("table")
 
-    # Convert table into DataFrame using Pandas
-    table = tables[0]
-    table_data = [
-    [cell.text for cell in row.find_all(["th", "td"])] for row in table.find_all("tr")
-    ]
+    # index for info only on the mars facts table
+    facts_table = tables[0]
+
+    # extract data from the facts table
+    table_data = [[cell.text for cell in row.find_all(["th", "td"])] for row in facts_table.find_all("tr")]
+
+    # convert to dataframe
     df = pd.DataFrame(table_data)
-    mars_html_table = df.to_html(index=False)
-    mars["mars_facts"] = mars_html_table
 
-    # Mars Hemispheres
-    # Image 1
-    def get_html_h1(url_h1):
-        driver = webdriver.Firefox()
-        driver.get(url_h1)
-        html_h1 = driver.page_source
-        driver.close()
-        return html_h1
+    # rename columns
+    df.rename(columns = {0 : "", 1: ""}, inplace=True)
+    
+    #save html of table to a string and add to dict
+    mars_data["mars_facts_table"] = df.to_html(index=False)
 
-    url_h1 = "https://astrogeology.usgs.gov/search/map/Mars/Viking/cerberus_enhanced"
-    html_h1 = get_html_h1(url_h1)
-    soup_h1 = BeautifulSoup(html_h1, "html.parser")
-    image_h1 = soup_h1.find("div", class_ = "downloads").find("a")["href"]
+    # establish url and scrape web page for Mars hemispheres
+    base_url = "https://astrogeology.usgs.gov"
+    url = base_url + "/search/results?q=hemisphere+enhanced&k1=target&v1=Mars"
 
-    #Image 2
-    def get_html_h2(url_h2):
-        driver = webdriver.Firefox()
-        driver.get(url_h2)
-        html_h2 = driver.page_source
-        driver.close()
-        return html_h2
+    driver.get(url)
+    driver.implicitly_wait(10)
+    html = driver.page_source
 
-    url_h2 = "https://astrogeology.usgs.gov/search/map/Mars/Viking/schiaparelli_enhanced"
-    html_h2 = get_html_h2(url_h2)
-    soup_h2 = BeautifulSoup(html_h2, "html.parser")
-    image_h2 = soup_h2.find("div", class_ = "downloads").find("a")["href"]
+    soup = BeautifulSoup(html, "html.parser")
 
-    #Image 3
-    def get_html_h3(url_h3):
-        driver = webdriver.Firefox()
-        driver.get(url_h3)
-        html_h3 = driver.page_source
-        driver.close()
+    # remove all h3 tags from list
+    titles = [h3.text.strip() for h3 in soup.find_all("h3")]
 
-        return html_h3
+    # loop through list of titles to navigate to each page and extract html from each
+    html_pages = []
+    for title in titles:
+        driver.get(url)
+        driver.implicitly_wait(10)
+        driver.find_element_by_link_text(title).click()
+        driver.implicitly_wait(10)
+        html_pages.append(driver.page_source)
 
-    url_h3 = "https://astrogeology.usgs.gov/search/map/Mars/Viking/syrtis_major_enhanced"
-    html_h3 = get_html_h3(url_h3)
-    soup_h3 = BeautifulSoup(html_h3, "html.parser")
-    image_h3 = soup_h3.find("div", class_ = "downloads").find("a")["href"]
+    # convert list into a string for bs4
+    html = " ".join(map(str, html_pages))
 
-    #Image 4
-    def get_html_h4(url_h4):
-        driver = webdriver.Firefox()
-        driver.get(url_h4)
-        html_h4 = driver.page_source
-        driver.close()
+    # pass to bs4 for parsing
+    soup = BeautifulSoup(html, "html.parser")
 
-        return html_h4
+    img_urls = soup.find_all("img", class_="wide-image")
 
-    url_h4 = "https://astrogeology.usgs.gov/search/map/Mars/Viking/syrtis_major_enhanced"
-    html_h4 = get_html_h3(url_h4)
-    soup_h4 = BeautifulSoup(html_h4, "html.parser")
-    image_h4 = soup_h4.find("div", class_ = "downloads").find("a")["href"]
+    # extract all src attributes
+    img_srcs = []
+    for img in img_urls:
+        img_srcs.append(img["src"])
 
-    #Image Dictionary
-    hemisphere_image_urls = [
-        {"title": "Cerberus Hemisphere", "img_url": "image_h1"},
-        {"title": "Schiaparelli Hemisphere", "img_url": "image_h2"},
-        {"title": "Syrtis Major Hemisphere", "img_url": "image_h3"},
-        {"title": "Valles Marineris Hemisphere", "img_url": "image_h4"},
-    ]
-    mars["mars hemispheres"] = hemisphere_image_urls
+    # add base url to img_srcs
+    urls = [(base_url + e) for e in img_srcs]
 
-    return mars
-    driver.close()
+    # zip lists together in tuples for converting to list of dicts
+    tuple_list = list(zip(titles, urls))
+
+    # keys for list of dictionaries for each hemisphere
+    keys = ("title", "img_url")
+
+    # zip the list of keys and values together for each tuple in the list and add to dict
+    mars_data["mars_hemispheres"] = [dict(zip(keys, values)) for values in tuple_list]
+
+    return mars_data    
 
 scrape(driver)
-print(mars)
-
-if __name__ == "__main__":
-    print(scrape(driver))
+driver.close()
